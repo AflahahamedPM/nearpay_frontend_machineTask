@@ -94,53 +94,50 @@ const useDashboardServices = () => {
 
   /* --------------------- Budgets --------------------- */
 
-  const fetchBudgets = useCallback(
-    async (monthEpoch) => {
-      if (!monthEpoch) return;
-      setIsLoading(true);
-      try {
-        const response = await APIRequest.request(
-          "POST",
-          API_ENDPOINTS?.fetchBudgets,
-          JSON.stringify({ month: monthEpoch })
+  const fetchBudgets = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const response = await APIRequest.request(
+        "POST",
+        API_ENDPOINTS?.fetchBudgets,
+        JSON.stringify({ month: selectedMonth })
+      );
+      if (response?.data?.responseCode === 109) {
+        setBudgetData(response?.data?.result || []);
+      } else if (response?.data?.responseCode === 108) {
+        publishNotification(response?.data?.message, "error");
+      } else {
+        publishNotification(
+          response?.data?.message || "Error while fetching budgets",
+          "error"
         );
-        if (response?.data?.responseCode === 109) {
-          setBudgetData(response?.data?.result || []);
-        } else if (response?.data?.responseCode === 108) {
-          publishNotification(response?.data?.message, "error");
-        } else {
-          publishNotification(
-            response?.data?.message || "Error while fetching budgets",
-            "error"
-          );
-        }
-      } catch (err) {
-        publishNotification(err?.message ?? "Network error", "error");
-      } finally {
-        setIsLoading(false);
       }
-    },
-    [publishNotification]
-  );
+    } catch (err) {
+      publishNotification(err?.message ?? "Network error", "error");
+    } finally {
+      setIsLoading(false);
+    }
+  }, [publishNotification]);
 
   useEffect(() => {
     if (currentPage === "budgets") {
-      fetchBudgets(selectedMonth);
+      fetchBudgets();
     }
   }, [currentPage, selectedMonth]);
 
   const handleMonthChange = useCallback((val) => {
     if (!val) return;
     const epoch = monthEpochFrom(val);
-    setSelectedMonth((prev) => (prev === epoch ? prev : epoch));
+    setSelectedMonth(epoch);
   }, []);
 
   const handleBudgetMonthChange = useCallback((val) => {
     if (!val) return;
     const epoch = monthEpochFrom(val);
-    setBudgetForm((prev) =>
-      prev?.month === epoch ? prev : { ...prev, month: epoch }
-    );
+    setBudgetForm((prev) => ({
+      ...prev,
+      month: epoch,
+    }));
   }, []);
 
   const handleBudgetChange = useCallback((itemId, value) => {
@@ -195,51 +192,48 @@ const useDashboardServices = () => {
 
   /* --------------------- Expenses --------------------- */
 
-  const fetchExpenses = useCallback(
-    async (monthEpoch) => {
-      if (!monthEpoch) return;
-      setIsLoading(true);
-      try {
-        const response = await APIRequest.request(
-          "POST",
-          API_ENDPOINTS?.expenses,
-          JSON.stringify({ month: monthEpoch })
+  const fetchExpenses = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const response = await APIRequest.request(
+        "POST",
+        API_ENDPOINTS?.expenses,
+        JSON.stringify({ month: selectedExpenseMonth })
+      );
+      if (response?.data?.responseCode === 109) {
+        setExpenseData(response?.data?.result || []);
+      } else {
+        publishNotification(
+          response?.data?.message || "Error while fetching expenses",
+          "error"
         );
-        if (response?.data?.responseCode === 109) {
-          setExpenseData(response?.data?.result || []);
-        } else {
-          publishNotification(
-            response?.data?.message || "Error while fetching expenses",
-            "error"
-          );
-        }
-      } catch (err) {
-        publishNotification(err?.message ?? "Network error", "error");
-      } finally {
-        setIsLoading(false);
       }
-    },
-    [publishNotification]
-  );
+    } catch (err) {
+      publishNotification(err?.message ?? "Network error", "error");
+    } finally {
+      setIsLoading(false);
+    }
+  }, [publishNotification]);
 
   useEffect(() => {
     if (currentPage === "dashboard") {
-      fetchExpenses(selectedExpenseMonth);
+      fetchExpenses();
     }
   }, [currentPage, selectedExpenseMonth]);
 
   const handleExpenseMonthChange = useCallback((val) => {
     if (!val) return;
     const epoch = monthEpochFrom(val);
-    setSelectedExpenseMonth((prev) => (prev === epoch ? prev : epoch));
+    setSelectedExpenseMonth(epoch);
   }, []);
 
   const handleExpenseDateChange = useCallback((date) => {
     if (!date) return;
     const epoch = Math.floor(date.getTime() / 1000);
-    setExpenseForm((prev) =>
-      prev?.date === epoch ? prev : { ...prev, date: epoch }
-    );
+    setExpenseForm((prev) => ({
+      ...prev,
+      date: epoch,
+    }));
   }, []);
 
   const createNewExpenses = useCallback(async () => {
@@ -257,7 +251,7 @@ const useDashboardServices = () => {
       );
       if (response?.data?.responseCode === 109) {
         publishNotification(response?.data?.message, "success");
-        fetchExpenses(selectedExpenseMonth);
+        fetchExpenses();
         setIsExpenseModalOpen(false);
         setExpenseForm(expenseDetails);
       } else {
@@ -408,7 +402,7 @@ const useDashboardServices = () => {
     createNewExpenses,
     expenseData,
     handleEditCategory,
-    expenseDetails
+    expenseDetails,
   };
 };
 
