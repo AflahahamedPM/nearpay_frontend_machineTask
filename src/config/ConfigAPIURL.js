@@ -7,6 +7,8 @@ export const API_ENDPOINTS = {
   createCategory: "/category/create",
   updateCategory: "/category/update",
   deleteCategory:"/category/delete",
+  fetchBudgets:"/budgets",
+  updateBudgetsBulk:"/budgets/update"
 };
 
 export const getApiUrl = (endpoint) => {

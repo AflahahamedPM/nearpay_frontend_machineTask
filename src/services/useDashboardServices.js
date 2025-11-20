@@ -1,8 +1,10 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import APIRequest from "../utils/APIRequest";
 import { API_ENDPOINTS } from "../config/ConfigAPIURL";
 import { CheckValidation } from "../utils/Validation";
 import useAlert from "../hooks/useAlert";
+import { useNavigate } from "react-router-dom";
+import dayjs from "dayjs";
 
 const categoryDetails = {
   name: "",
@@ -15,6 +17,16 @@ const useDashboardServices = () => {
   const [categoriesData, setCategoriesData] = useState([]);
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
   const [categoryForm, setCategoryForm] = useState(categoryDetails);
+  const [selectedMonth, setSelectedMonth] = useState(dayjs());
+  const [dateRange, setDateRange] = useState({
+    startDate: null,
+    endDate: null,
+  });
+  const [budgetData, setBudgetData] = useState([]);
+    const [chagedBudgetIds, setDirtyIds] = useState(new Set());
+
+
+  const navigate = useNavigate();
 
   const { publishNotification } = useAlert();
 
@@ -24,6 +36,12 @@ const useDashboardServices = () => {
     }
   }, [currentPage]);
 
+  useEffect(() => {
+    if (dateRange?.startDate !== null && currentPage === "budgets") {
+      getBudgetDatas();
+    }
+  }, [dateRange]);
+
   const fetchAllCategories = async () => {
     try {
       const response = await APIRequest.request(
@@ -32,9 +50,12 @@ const useDashboardServices = () => {
       );
       if (response?.data?.responseCode === 109) {
         setCategoriesData(response?.data?.result);
+      } else if (response?.data?.responseCode === 108) {
+        publishNotification(response?.data?.message, "error");
+        navigate("/login");
       } else {
         publishNotification(
-          response?.data?.message ?? "Error while fetching categories",
+          response?.data?.message || "Error while fetching categories",
           "error"
         );
       }
@@ -61,7 +82,7 @@ const useDashboardServices = () => {
       const response = await APIRequest.request(
         "POST",
         url,
-        JSON.stringify(categoryForm)
+        JSON.stringify({ ...categoryForm, ...dateRange })
       );
 
       const responseCode = response?.data?.responseCode;
@@ -109,6 +130,112 @@ const useDashboardServices = () => {
     }
   };
 
+  function getMonthRangeIST(date) {
+    const year = date.year();
+    const month = date.month();
+
+    const start = new Date(Date.UTC(year, month, 1, 0, 0, 0));
+    const end = new Date(Date.UTC(year, month + 1, 0, 23, 59, 59, 999));
+
+    return {
+      startDate: Math.floor(start.getTime() / 1000),
+      endDate: Math.floor(end.getTime() / 1000),
+    };
+  }
+
+  useEffect(() => {
+    const now = dayjs();
+
+    const { startDate, endDate } = getMonthRangeIST(now);
+    setDateRange({ startDate, endDate });
+
+    setSelectedMonth(now);
+  }, [currentPage]);
+
+  const handleMonthChange = useCallback((val) => {
+    if (!val) return;
+
+    setSelectedMonth(val);
+
+    const { startDate, endDate } = getMonthRangeIST(val);
+    setDateRange({ startDate, endDate });
+  }, []);
+
+  const getBudgetDatas = async () => {
+    try {
+      const response = await APIRequest.request(
+        "POST",
+        API_ENDPOINTS?.fetchBudgets,
+        JSON.stringify(dateRange)
+      );
+      if (response?.data?.responseCode === 109) {
+        setBudgetData(response?.data?.result);
+        publishNotification(response?.data?.message, "success");
+      } else if (response?.data?.responseCode === 108) {
+        publishNotification(response?.data?.message, "error");
+      } else {
+        publishNotification(response?.data?.message, "error");
+      }
+    } catch (error) {
+      publishNotification(
+        error?.message ?? "Error while fetching the budget datas",
+        "error"
+      );
+    }
+  };
+
+  const handleBudgetChange = useCallback(
+    (itemId, value) => {
+      const newValue = value === "" ? "" : Number(value);
+
+      setBudgetData((prev = []) =>
+        prev.map((item) =>
+          item?._id === itemId ? { ...item, maxBudget: newValue } : item
+        )
+      );
+
+      setDirtyIds((s) => new Set(s).add(itemId));
+    },
+    [setBudgetData]
+  );
+
+  const prepareUpdates = () => {
+    if (!budgetData) return [];
+    return budgetData
+      .filter((item) => dirtyIds.has(item._id))
+      .map((item) => ({
+        _id: item._id,
+        maxBudget: item.maxBudget === "" ? 0 : Number(item.maxBudget),
+      }));
+  };
+
+  const handleBudgetSave = async () => {
+    const updates = prepareUpdates();
+    if (updates.length === 0) {
+      publishNotification("No changes to save", "info");
+      return;
+    }
+
+    try {
+      const response = await APIRequest.request(
+        "POST",
+        API_ENDPOINTS.updateBudgetsBulk, 
+        JSON.stringify({ updates })
+      );
+
+      if (response?.data?.responseCode === 109) {
+        publishNotification("Budgets saved", "success");
+        setDirtyIds(new Set()); 
+        getBudgetDatas()
+      } else {
+        publishNotification(response?.data?.message ?? "Save failed", "error");
+      }
+    } catch (err) {
+      console.error("Save error:", err);
+      publishNotification(err?.message ?? "Network error", "error");
+    }
+  };
+
   return {
     mobileMenuOpen,
     setMobileMenuOpen,
@@ -125,6 +252,12 @@ const useDashboardServices = () => {
     handleEditCategory,
     categoryDetails,
     deleteCategory,
+    handleMonthChange,
+    selectedMonth,
+    budgetData,
+    setBudgetData,
+    handleBudgetSave,
+    handleBudgetChange
   };
 };
 
