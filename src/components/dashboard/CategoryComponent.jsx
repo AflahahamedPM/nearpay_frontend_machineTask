@@ -4,6 +4,7 @@ import { Trash2, PencilIcon, PlusCircle } from "lucide-react";
 import { Button } from "../ui/button";
 import Dialog from "../ReusableComponents/Dialog";
 import CategoryModalContent from "./CategoryModalContent";
+import { Spinner } from "@/components/ui/spinner";
 
 const CategoryComponent = () => {
   const {
@@ -15,6 +16,7 @@ const CategoryComponent = () => {
     setCategoryForm,
     categoryForm,
     deleteCategory,
+    isLoading,
   } = useDashboardData();
 
   return (
@@ -31,20 +33,24 @@ const CategoryComponent = () => {
         </Button>
       </div>
 
-      {categoriesData?.length === 0 ? (
+      {isLoading ? (
+        <div className="flex items-center justify-center py-8">
+          <Spinner className="size-8" />
+        </div>
+      ) : categoriesData.length === 0 ? (
         <p className="text-2xl font-bold flex justify-center items-center">
           No Categories
         </p>
       ) : (
-        categoriesData?.map((data) => (
+        categoriesData.map((data) => (
           <div
             key={data?._id}
-            className={`p-3 border border-gray-400 rounded-xl flex justify-between items-center mb-3`}
+            className="p-3 border border-gray-400 rounded-xl flex justify-between items-center mb-3"
           >
             <div className="flex gap-3 justify-center items-center">
               <div
                 className="rounded-full h-6 w-6"
-                style={{ backgroundColor: data?.color }}
+                style={{ backgroundColor: data?.color || "#000" }}
               />
               <p className="text-lg font-semibold">{data?.name}</p>
             </div>
