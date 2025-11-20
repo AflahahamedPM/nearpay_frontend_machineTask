@@ -23,8 +23,7 @@ const useDashboardServices = () => {
     endDate: null,
   });
   const [budgetData, setBudgetData] = useState([]);
-    const [chagedBudgetIds, setDirtyIds] = useState(new Set());
-
+  const [changedBudgetIds, setChangedBudgetIds] = useState(new Set());
 
   const navigate = useNavigate();
 
@@ -194,7 +193,7 @@ const useDashboardServices = () => {
         )
       );
 
-      setDirtyIds((s) => new Set(s).add(itemId));
+      setChangedBudgetIds((s) => new Set(s).add(itemId));
     },
     [setBudgetData]
   );
@@ -202,7 +201,7 @@ const useDashboardServices = () => {
   const prepareUpdates = () => {
     if (!budgetData) return [];
     return budgetData
-      .filter((item) => dirtyIds.has(item._id))
+      .filter((item) => changedBudgetIds.has(item._id))
       .map((item) => ({
         _id: item._id,
         maxBudget: item.maxBudget === "" ? 0 : Number(item.maxBudget),
@@ -219,14 +218,14 @@ const useDashboardServices = () => {
     try {
       const response = await APIRequest.request(
         "POST",
-        API_ENDPOINTS.updateBudgetsBulk, 
+        API_ENDPOINTS.updateBudgetsBulk,
         JSON.stringify({ updates })
       );
 
       if (response?.data?.responseCode === 109) {
         publishNotification("Budgets saved", "success");
-        setDirtyIds(new Set()); 
-        getBudgetDatas()
+        setDirtyIds(new Set());
+        getBudgetDatas();
       } else {
         publishNotification(response?.data?.message ?? "Save failed", "error");
       }
@@ -257,7 +256,7 @@ const useDashboardServices = () => {
     budgetData,
     setBudgetData,
     handleBudgetSave,
-    handleBudgetChange
+    handleBudgetChange,
   };
 };
 
